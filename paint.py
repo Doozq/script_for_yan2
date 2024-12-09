@@ -101,7 +101,7 @@ def change_color(color, canvas, driver):
         logging.error(f"Error in change_color: {e}")
         raise
 
-def check_tanos(driver):
+def check_tanos(driver, canvas, direction):
     try:
         whoosh_btn = driver.find_element(By.XPATH, "//button[text()='Whoosh!']")
         time.sleep(1.5)
@@ -116,6 +116,13 @@ def check_tanos(driver):
         time.sleep(2)
         template_btn.click()
         time.sleep(1)
+
+        offset = direction
+        actions = ActionChains(driver)
+
+        # Зажимаем ЛКМ, перемещаем элемент и отпускаем
+        actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
+        time.sleep(2)
 
         logging.info("TANOS was dodged")
     
@@ -255,14 +262,14 @@ def start_paint(
                 if not change_color(repaint_color, canvas, driver):
                     return
                 time.sleep(1)
-                paint(canvas_x, canvas_y, driver, canvas)
+                paint(canvas_x, canvas_y, driver, canvas, direction)
                 if not change_color(top_color, canvas, driver):
                     return
                 logging.info(f"Profile {profile_name}. Miss dropped")
             
             else:
                 # start_time = time.time()
-                paint(canvas_x, canvas_y, driver, canvas)
+                paint(canvas_x, canvas_y, driver, canvas, direction)
                 # time_paint = time.time() - start_time
 
             # print(time_screen, time_find, time_paint)
@@ -274,7 +281,7 @@ def start_paint(
             #     energy = 25
             if start_energy == energy:
                 start_time = time.time()
-                check_tanos(driver)
+                check_tanos(driver, canvas, direction)
                 print(time.time() - start_time)
         time.sleep(2)
         end_balance = get_balance(driver)
@@ -295,7 +302,7 @@ def start_paint(
         raise
 
 
-def paint(x, y, driver, canvas):
+def paint(x, y, driver, canvas, direction):
     try:
         ActionChains(driver).move_to_element_with_offset(canvas, x, y).click().perform()
 
@@ -316,6 +323,13 @@ def paint(x, y, driver, canvas):
             time.sleep(2)
             template_btn.click()
             time.sleep(1)
+
+            offset = direction
+            actions = ActionChains(driver)
+
+            # Зажимаем ЛКМ, перемещаем элемент и отпускаем
+            actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
+            time.sleep(2)
 
             logging.info("TANOS was dodged")
 
