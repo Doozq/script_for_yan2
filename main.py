@@ -81,10 +81,10 @@ def run_work_in_threads(works, profiles):
 def check_and_run_work(profiles, start=False):
     work_to_run = []
     now = datetime.now()
-    # summ = 0
+    summ = 0
     for profile_id, data in profiles.items():
     #     profiles[profile_id].pop("start", None)
-    #     for key in ["temp", "template_place", "my_place", "pixels_to_win", "skip", "start", "sleep_time"]:
+    #     for key in ["temp", "template_place", "my_place", "pixels_to_win", "skip", "start", "direction", "sleep_time"]:
     #         profiles[profile_id].pop(key, None)
     # return
         # if start:  # Случайный отбор для первого запуска за день
@@ -92,7 +92,7 @@ def check_and_run_work(profiles, start=False):
         #         continue
         # if int(data["template_place"]) > 70 or (data["pixels_to_win"] != "In the zone" and int(data["pixels_to_win"]) > 50) or data["balance"] > 95000:
         #     continue
-        # if int(data["name"]) not in [37]:
+        # if int(data["name"]) not in [29]:
         #     continue
         # if not(random.randint(0, 49)) and ((now - data["last_claim"]) >= timedelta(hours=random.uniform(5, 8))):
         # #     work_to_run.append(profile_id)
@@ -100,10 +100,13 @@ def check_and_run_work(profiles, start=False):
         #     profiles[profile_id]["sleep_time"] = now + timedelta(hours=random.randint(4, 9))
         # if now > data["sleep_time"] and now - data["sleep_time"] < timedelta(hours=6):
         #     continue
-        # if "skip" in data or int(data["template_place"]) > 34 or (data["pixels_to_win"] != "In the zone" and int(data["pixels_to_win"]) > 50):
+        # if ("template_place" in data and int(data["template_place"]) > 18) or ("pixels_to_win" in data and data["pixels_to_win"] != "In the zone" and int(data["pixels_to_win"]) > 35):
         #     continue
-        # print(data)
-        if now - data["last_paint"] >= timedelta(hours=random.uniform(1.5, 1.8)):
+    #     if data["balance"] > 200000:
+    #         print(data["balance"])
+    #         summ += data["balance"]
+    # print(summ)
+        if now - data["last_paint"] >= timedelta(hours=random.uniform(1.4, 1.8)):
             work_to_run.append(profile_id)
     random.shuffle(work_to_run)
     run_work_in_threads(work_to_run, profiles)

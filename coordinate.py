@@ -1,7 +1,10 @@
 import logging
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import ElementClickInterceptedException
 import time
+
+from claim import check_tanos
 
 import logger_setup
 
@@ -65,7 +68,25 @@ def colibrate_systems(driver, canvas):
             y_pixel_bot,
             x_ratio,
             y_ratio,
+            True
         )
+
+    except ElementClickInterceptedException:
+        if check_tanos(driver):
+            return (
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            False
+        )
+        else:
+            raise
+
 
     except Exception as e:
         logging.error(f"Error in colibrate_systems: {e}")

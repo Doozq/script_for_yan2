@@ -103,13 +103,11 @@ def change_color(color, canvas, driver):
 
 def check_tanos(driver, canvas, direction):
     try:
-        whoosh_btn = driver.find_element(By.XPATH, "//button[text()='Whoosh!']")
-        time.sleep(1.5)
-        whoosh_btn.click()
+        alarm = driver.find_element(By.XPATH, "//*[contains(text(), 'I AM')]")
         time.sleep(random.uniform(7.0, 10.0))
 
         template_btn = driver.find_element(
-            By.XPATH, "//div[contains(@class, 'container')]/button/img"
+            By.XPATH, "//div[contains(@class, 'buttons_container')]/button/img"
         )
         time.sleep(0.5)
         template_btn.click()
@@ -132,7 +130,6 @@ def check_tanos(driver, canvas, direction):
     except Exception as e:
         logging.error(f"Error in check_tanos: {e}")
         raise
-
 
 def enable_speed(driver):
         try:
@@ -231,10 +228,10 @@ def start_paint(
 
         if not enable_fast_mode(driver):
             return
-        # if int(profiles[profile_id]["name"]) in [10, 58]:
-        #     enable_speed(driver)
+        if int(profiles[profile_id]["name"]) in [14]:
+            enable_speed(driver)
         driver.implicitly_wait(0)
-
+        check_tanos(driver, canvas, direction)
         while energy != 0:
             # start_time = time.time()
             screen_colors = color_from_screen(canvas_coords, canvas)
@@ -251,7 +248,7 @@ def start_paint(
 
             # time_find = time.time() - start_time
             
-            miss = not bool(random.randint(0, 200))
+            miss = not bool(random.randint(0, 70))
             if miss:
                 if len(top_colors) > 1:
                     repaint_color = [i for i in top_colors if i != top_color][0]
@@ -277,8 +274,8 @@ def start_paint(
             time.sleep(random.uniform(0.5, 2))
             start_energy = energy
             energy = get_energy(driver)
-            # if int(profiles[profile_id]["name"]) in [10, 58] and energy == 0:
-            #     energy = 25
+            if int(profiles[profile_id]["name"]) in [14] and energy == 0:
+                energy = 25
             if start_energy == energy:
                 start_time = time.time()
                 check_tanos(driver, canvas, direction)

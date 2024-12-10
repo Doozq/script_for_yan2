@@ -23,6 +23,23 @@ def get_balance(driver):
     except Exception as e:
         return 0
 
+def check_tanos(driver):
+    try:
+        driver.implicitly_wait(0)
+        alarm = driver.find_element(By.XPATH, "//*[contains(text(), 'I AM')]")
+        driver.implicitly_wait(10)
+        time.sleep(random.uniform(7.0, 10.0))
+
+        logging.info("TANOS was dodged in work")
+        return True
+    
+    except NoSuchElementException:
+        driver.implicitly_wait(10)
+        return False
+
+    except Exception as e:
+        logging.error(f"Error in check_tanos: {e}")
+        raise
 
 def claim(driver, profile_id, profiles):
     profile_name = profiles[profile_id]["name"]
@@ -30,16 +47,28 @@ def claim(driver, profile_id, profiles):
         start_balance = get_balance(driver)
 
         balance_btn = driver.find_element(By.XPATH, "//button[contains(@class, 'button_rjvnl')]/img")
+        time.sleep(2)
+        check_tanos(driver)
+
         balance_btn.click()
         time.sleep(1)
 
+        if check_tanos(driver):
+            claim(driver, profile_id, profiles)
+            return
         claim_btn = driver.find_element(By.XPATH, "//span[text() = 'Claim']")
         claim_btn.click()
         time.sleep(random.uniform(3.0, 5.0))
 
+        if check_tanos(driver):
+            claim(driver, profile_id, profiles)
+            return
         balance_btn.click()
         time.sleep(3)
-
+        
+        if check_tanos(driver):
+            claim(driver, profile_id, profiles)
+            return
         end_balance = get_balance(driver)
         profit = end_balance - start_balance
         if end_balance:
