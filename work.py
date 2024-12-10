@@ -187,100 +187,100 @@ def work_profile(profile_id, profiles):
             
 
             # Открытие шаблона
-            # template = driver.find_element(
-            #     By.XPATH, "//div[contains(@class, 'buttons_container')]/button/img"
+            template = driver.find_element(
+                By.XPATH, "//div[contains(@class, 'buttons_container')]/button/img"
+            )
+
+            time.sleep(4)
+            check_tanos(driver)
+            template.click()
+            time.sleep(2)
+            if check_tanos(driver):
+                template.click()
+                time.sleep(1)
+                template.click()
+                time.sleep(2)
+            template.click()
+            time.sleep(random.uniform(1.0, 2.0))
+            logging.info(f"Profile {profile_name}. Template selected.")
+
+
+            # zoom = driver.find_element(
+            #     By.XPATH, "//div[contains(@class, 'buttons')]/button[contains(@class, 'button')]/span[contains(@class, 'icons')]"
             # )
-
-            # time.sleep(4)
-            # check_tanos(driver)
-            # template.click()
-            # time.sleep(2)
-            # if check_tanos(driver):
-            #     template.click()
-            #     time.sleep(1)
-            #     template.click()
-            #     time.sleep(2)
-            # template.click()
-            # time.sleep(random.uniform(1.0, 2.0))
-            # logging.info(f"Profile {profile_name}. Template selected.")
-
-
-            # # zoom = driver.find_element(
-            # #     By.XPATH, "//div[contains(@class, 'buttons')]/button[contains(@class, 'button')]/span[contains(@class, 'icons')]"
-            # # )
-            # # zoom.click()
-            # # time.sleep(3)
-            # # zoom.click()
-            # # time.sleep(2)
-
-            # # Поиск элемента канваса
-            # canvas = driver.find_element(By.XPATH, "//canvas[@id='canvasHolder']")
-
-            # offset = profiles[profile_id]["direction"]
-            # actions = ActionChains(driver)
-            
-            # if check_tanos(driver):
-            #     template.click()
-            #     time.sleep(2)
-            #     template.click()
-            #     time.sleep(random.uniform(1.0, 2.0))
-
-            # # Зажимаем ЛКМ, перемещаем элемент и отпускаем
-            # actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
+            # zoom.click()
+            # time.sleep(3)
+            # zoom.click()
             # time.sleep(2)
 
-            # if check_tanos(driver):
-            #     template.click()
-            #     time.sleep(2)
-            #     template.click()
-            #     time.sleep(random.uniform(1.0, 2.0))
-            #     actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
-            #     time.sleep(2)
-            # # Калибровка системы координат
-            # colibrated = False
-            # while not colibrated:
-            #     (
-            #         x_canvas_zero,
-            #         y_canvas_zero,
-            #         x_pixel_zero,
-            #         y_pixel_zero,
-            #         x_pixel_end,
-            #         y_pixel_end,
-            #         ratio_x,
-            #         ratio_y,
-            #         colibrated
-            #     ) = colibrate_systems(driver, canvas)
-            #     if not colibrated:
-            #         template.click()
-            #         time.sleep(2)
-            #         template.click()
-            #         time.sleep(1)
-            #         actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
-            #         time.sleep(2)
+            # Поиск элемента канваса
+            canvas = driver.find_element(By.XPATH, "//canvas[@id='canvasHolder']")
+
+            offset = profiles[profile_id]["direction"]
+            actions = ActionChains(driver)
             
-            # logging.info(f"Profile {profile_name}. System calibrated.")
+            if check_tanos(driver):
+                template.click()
+                time.sleep(2)
+                template.click()
+                time.sleep(random.uniform(1.0, 2.0))
 
-            # check_for_load = driver.find_element(By.XPATH, "//body/div[contains(@class, 'layout')]")
-            # style_load = check_for_load.get_attribute('style')
-            # if 'width: 0px' not in style_load:
-            #     logging.error(f"Profile {profile_name}. Ошибка загрузки")
-            #     return
+            # Зажимаем ЛКМ, перемещаем элемент и отпускаем
+            actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
+            time.sleep(2)
 
-            # # Запуск покраски
-            # start_paint(
-            #     x_canvas_zero,
-            #     y_canvas_zero,
-            #     x_pixel_zero,
-            #     y_pixel_zero,
-            #     x_pixel_end,
-            #     y_pixel_end,
-            #     ratio_x,
-            #     ratio_y,
-            #     driver,
-            #     canvas,
-            #     profile_id,
-            #     profiles,
-            # )
+            if check_tanos(driver):
+                template.click()
+                time.sleep(2)
+                template.click()
+                time.sleep(random.uniform(1.0, 2.0))
+                actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
+                time.sleep(2)
+            # Калибровка системы координат
+            colibrated = False
+            while not colibrated:
+                (
+                    x_canvas_zero,
+                    y_canvas_zero,
+                    x_pixel_zero,
+                    y_pixel_zero,
+                    x_pixel_end,
+                    y_pixel_end,
+                    ratio_x,
+                    ratio_y,
+                    colibrated
+                ) = colibrate_systems(driver, canvas)
+                if not colibrated:
+                    template.click()
+                    time.sleep(2)
+                    template.click()
+                    time.sleep(1)
+                    actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
+                    time.sleep(2)
+            
+            logging.info(f"Profile {profile_name}. System calibrated.")
+
+            check_for_load = driver.find_element(By.XPATH, "//body/div[contains(@class, 'layout')]")
+            style_load = check_for_load.get_attribute('style')
+            if 'width: 0px' not in style_load:
+                logging.error(f"Profile {profile_name}. Ошибка загрузки")
+                return
+
+            # Запуск покраски
+            start_paint(
+                x_canvas_zero,
+                y_canvas_zero,
+                x_pixel_zero,
+                y_pixel_zero,
+                x_pixel_end,
+                y_pixel_end,
+                ratio_x,
+                ratio_y,
+                driver,
+                canvas,
+                profile_id,
+                profiles,
+            )
             # end_time = datetime.now()
             # if end_time - start_time >= timedelta(minutes=25):
             #     profiles[profile_id]["skip"] = True
@@ -289,20 +289,20 @@ def work_profile(profile_id, profiles):
 
             # current_hour = datetime.now().hour
             # if current_hour > 8:
-            # if not random.randint(0, 3):
+            if not random.randint(0, 3):
                 # time.sleep(random.randint(7, 15))
-            round_btn = driver.find_element(By.XPATH, "//span[text()='Starts ' or text()='Round ']")
-            round_btn.click()
-            time.sleep(random.uniform(3.0, 5.0))
-            results_btn = driver.find_element(By.XPATH, "//div[text()='My results']")
-            results_btn.click()
-            time.sleep(random.uniform(4.0, 5.0))
-            template_place = driver.find_elements(By.XPATH, "//div[contains(@class, 'round_line_')]/div")[1].text.split(" ")[1]
-            my_place = driver.find_elements(By.XPATH, "//div[contains(@class, 'round_line_')]/div")[5].text
-            pixels_to_win = driver.find_elements(By.XPATH, "//div[contains(@class, 'pixels_number')]//div")[1].text
-            profiles[profile_id]["template_place"] = template_place
-            profiles[profile_id]["my_place"] = my_place
-            profiles[profile_id]["pixels_to_win"] = pixels_to_win
+                round_btn = driver.find_element(By.XPATH, "//span[text()='Starts ' or text()='Round ']")
+                round_btn.click()
+                time.sleep(random.uniform(3.0, 5.0))
+                results_btn = driver.find_element(By.XPATH, "//div[text()='My results']")
+                results_btn.click()
+                time.sleep(random.uniform(4.0, 5.0))
+                template_place = driver.find_elements(By.XPATH, "//div[contains(@class, 'round_line_')]/div")[1].text.split(" ")[1]
+                my_place = driver.find_elements(By.XPATH, "//div[contains(@class, 'round_line_')]/div")[5].text
+                pixels_to_win = driver.find_elements(By.XPATH, "//div[contains(@class, 'pixels_number')]//div")[1].text
+                profiles[profile_id]["template_place"] = template_place
+                profiles[profile_id]["my_place"] = my_place
+                profiles[profile_id]["pixels_to_win"] = pixels_to_win
             # if int(template_place) >= 75 and profiles[profile_id]["balance"] > 100000:
             #     profiles[profile_id]["skip"] = True
             
