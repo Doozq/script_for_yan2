@@ -39,6 +39,19 @@ def colibrate_systems(driver, canvas):
             x_canvas_bot, y_canvas_bot, driver, canvas
         )
 
+        if check_tanos(driver):
+            return (
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            False
+        )
+
         while (
             x_pixel_bot == convert_coords_from_canvas_to_pixel(
                 x_canvas_bot, y_canvas_bot, driver, canvas
@@ -58,6 +71,19 @@ def colibrate_systems(driver, canvas):
 
         x_ratio = (x_canvas_bot - x_canvas_top + 1) / (x_pixel_bot - x_pixel_top + 1)
         y_ratio = (y_canvas_bot - y_canvas_top + 1) / (y_pixel_bot - y_pixel_top + 1)
+
+        if check_tanos(driver):
+            return (
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            False
+        )
 
         return (
             x_canvas_top,
@@ -179,3 +205,20 @@ def convert_coords_from_pixel_to_canvas(
     except Exception as e:
         logging.error(f"Error in convert_coords_from_pixel_to_canvas: {e}")
         raise
+
+
+def moove_template(driver, canvas, offset):
+    actions1 = ActionChains(driver)
+    actions2 = ActionChains(driver)
+    actions3 = ActionChains(driver)
+    
+    first_move = [i if abs(i) == 1 else i // 2 for i in offset]
+    # Зажимаем ЛКМ, перемещаем элемент и отпускаем
+    actions1.click_and_hold(canvas).move_by_offset(200 * first_move[0], 200 * first_move[1]).release().perform()
+    time.sleep(0.5)
+    second_move = [offset[0] - first_move[0], offset[1] - first_move[1]]
+    if second_move != [0, 0]:
+        actions2.move_to_element(canvas).click_and_hold(canvas).move_by_offset(150 * second_move[0], 150 * second_move[1]).release().perform()
+        time.sleep(0.5)
+        actions3.move_to_element(canvas).click_and_hold(canvas).move_by_offset(150 * second_move[0], 150 * second_move[1]).release().move_to_element(canvas).perform()
+        time.sleep(1)

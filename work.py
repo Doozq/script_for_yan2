@@ -12,14 +12,14 @@ from datetime import datetime, timedelta
 import logger_setup
 import dolphin
 from config import token, temp_urls, t_size
-from coordinate import colibrate_systems
+from coordinate import colibrate_systems, moove_template
 from paint import start_paint
 from claim import claim, get_balance, check_tanos
 from upgrade import check_upgrade
 from templates import tournament_templates
 
 
-MAX_THREADS = 5
+MAX_THREADS = 4
 semaphore = threading.Semaphore(MAX_THREADS)
 
 
@@ -106,8 +106,7 @@ def get_tempalte_info(driver, profile_id, profiles):
         logging.error(f"Errorin get_template_info: {e}")
         raise
 
-
-def work_profile(profile_id, profiles):
+def work_profile(profile_id, profiles, tanos):
     with semaphore:
         try:
             profile_name = profiles[profile_id]["name"]
@@ -154,36 +153,40 @@ def work_profile(profile_id, profiles):
                 if switched:
                     driver.switch_to.frame(iframe)
             
-            if "start" not in profiles[profile_id]:
-                time.sleep(2)
-                round_btn = driver.find_element(By.XPATH, "//span[text()='Starts ' or text()='Round ']")
-                round_btn.click()
-                time.sleep(random.uniform(3.0, 5.0))
-                results_btn = driver.find_element(By.XPATH, "//div[text()='My results']")
-                results_btn.click()
-                time.sleep(random.uniform(4.0, 5.0))
-                temp_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'round_container')]")
-                temp_btn.click()
-                time.sleep(2)
-                coords = [int(i) for i in driver.find_elements(By.XPATH, "//div[contains(@class, 'info_row')]/span")[1].text.split(", ")]
-                print(coords)
-                profiles[profile_id]["start"] = coords
-                x = 200
-                directions = [[x, x], [x, -x], [-x, x], [-x, -x]]
+            if "direction" not in profiles[profile_id]:
+                a = [-2, -1, 1, 2]
+                directions = [[x, y] for y in a for x in a]
                 used_directions = [profile["direction"] for profile in profiles.values() if "temp" in profile and profile["temp"] == profiles[profile_id]["temp"] and "direction" in profile]
                 allowed_directions = [d for d in directions if d not in used_directions]
                 if len(allowed_directions) > 0:
                     profiles[profile_id]["direction"] = random.choice(allowed_directions)
                 else:
-                    profiles[profile_id]["direction"] = random.choice(directions)
-                close_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'close_button')]")
-                close_btn.click()
-                time.sleep(2)
-                balance_btn = driver.find_element(By.XPATH, "//button[contains(@class, 'button_rjvnl')]/img")
-                balance_btn.click()
-                time.sleep(2)
-                balance_btn.click()
-                time.sleep(2)
+                    logging.warning("All slots is using")
+                    return
+            
+            # if "start" not in profiles[profile_id]:
+            #     time.sleep(2)
+            #     round_btn = driver.find_element(By.XPATH, "//span[text()='Starts ' or text()='Round ']")
+            #     round_btn.click()
+            #     time.sleep(random.uniform(3.0, 5.0))
+            #     results_btn = driver.find_element(By.XPATH, "//div[text()='My results']")
+            #     results_btn.click()
+            #     time.sleep(random.uniform(4.0, 5.0))
+            #     temp_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'round_container')]")
+            #     temp_btn.click()
+            #     time.sleep(3)
+            #     coords = [int(i) for i in driver.find_elements(By.XPATH, "//div[contains(@class, 'info_row')]/span")[1].text.split(", ")]
+            #     print(coords)
+            #     profiles[profile_id]["start"] = coords
+
+            #     close_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'close_button')]")
+            #     close_btn.click()
+            #     time.sleep(2)
+            #     balance_btn = driver.find_element(By.XPATH, "//button[contains(@class, 'button_rjvnl')]/img")
+            #     balance_btn.click()
+            #     time.sleep(2)
+            #     balance_btn.click()
+            #     time.sleep(2)
             
 
             # Открытие шаблона
@@ -216,26 +219,21 @@ def work_profile(profile_id, profiles):
             # Поиск элемента канваса
             canvas = driver.find_element(By.XPATH, "//canvas[@id='canvasHolder']")
 
-            offset = profiles[profile_id]["direction"]
-            actions = ActionChains(driver)
+            if check_tanos(driver):
+                template.click()
+                time.sleep(2)
+                template.click()
+                time.sleep(random.uniform(1.0, 2.0))
             
-            if check_tanos(driver):
-                template.click()
-                time.sleep(2)
-                template.click()
-                time.sleep(random.uniform(1.0, 2.0))
-
-            # Зажимаем ЛКМ, перемещаем элемент и отпускаем
-            actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
-            time.sleep(2)
+            offset = profiles[profile_id]["direction"]
+            moove_template(driver, canvas, offset)
 
             if check_tanos(driver):
                 template.click()
                 time.sleep(2)
                 template.click()
                 time.sleep(random.uniform(1.0, 2.0))
-                actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
-                time.sleep(2)
+                moove_template(driver, canvas, offset)
             # Калибровка системы координат
             colibrated = False
             while not colibrated:
@@ -255,8 +253,7 @@ def work_profile(profile_id, profiles):
                     time.sleep(2)
                     template.click()
                     time.sleep(1)
-                    actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
-                    time.sleep(2)
+                    moove_template(driver, canvas, offset)
             
             logging.info(f"Profile {profile_name}. System calibrated.")
 
@@ -280,6 +277,7 @@ def work_profile(profile_id, profiles):
                 canvas,
                 profile_id,
                 profiles,
+                tanos,
             )
             # end_time = datetime.now()
             # if end_time - start_time >= timedelta(minutes=25):
@@ -320,6 +318,8 @@ def work_profile(profile_id, profiles):
             # Закрытие драйвера при завершении работы
             try:
                 profiles[profile_id].pop("color", None)
+                profiles[profile_id].pop("start", None)
+                profiles[profile_id].pop("direction", None)
                 driver.quit()
                 logging.info(f"Profile {profile_name}. Driver closed successfully.")
                 dolphin.close_profile(profile_id)

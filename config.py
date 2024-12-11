@@ -39,11 +39,7 @@ pupmkin_colors = [
     (253, 191, 19),
     (255, 22, 0),
     (255, 134, 0),
-    (23, 31, 42),
-    (191, 67, 0),
-    (160, 3, 87)
-
-
+    (23, 31, 42)
 ]
 
 temp_urls = [
@@ -57,4 +53,4 @@ temp_urls = [
     "https://t.me/notpixel/app?startapp=f153665413_t"
 ]
 
-t_size = 256
+t_size = 512

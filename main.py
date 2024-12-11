@@ -3,13 +3,15 @@ import time
 import logging
 import random
 import json
-
+import asyncio
 from datetime import datetime, timedelta
 
 import logger_setup
 
 from work import work_profile
 from templates import tournament_templates
+# from telethon import TelegramClient, events
+# from functools import partial
 
 
 def load_profiles(file_path="profiles.json"):
@@ -47,6 +49,20 @@ def save_profiles(data, file_path="profiles.json"):
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
 
+def load_tanos():
+    with open("tanos.json", "r") as f:
+        data = json.load(f)
+    data["time"] = datetime.fromisoformat(
+        data["time"]
+    )
+    return data
+
+def save_tanos(data):
+    data["time"] = data["time"].strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    with open("tanos.json", "w") as f:
+        json.dump(data, f, indent=4)
 
 def calculate_day_profit():
     start_profiles = load_profiles("start_profiles.json")
@@ -64,10 +80,10 @@ def calculate_day_profit():
 
 
 # Функция для запуска задач в потоках с использованием семафора
-def run_work_in_threads(works, profiles):
+def run_work_in_threads(works, profiles, tanos):
     threads = []
     for profile_id in works:
-        thread = threading.Thread(target=work_profile, args=(profile_id, profiles))
+        thread = threading.Thread(target=work_profile, args=(profile_id, profiles, tanos,))
         threads.append(thread)
         thread.start()
 
@@ -78,7 +94,7 @@ def run_work_in_threads(works, profiles):
 
 
 # Проверка и выполнение задач по расписанию
-def check_and_run_work(profiles, start=False):
+def check_and_run_work(profiles, tanos, start=False):
     work_to_run = []
     now = datetime.now()
     summ = 0
@@ -100,16 +116,48 @@ def check_and_run_work(profiles, start=False):
         #     profiles[profile_id]["sleep_time"] = now + timedelta(hours=random.randint(4, 9))
         # if now > data["sleep_time"] and now - data["sleep_time"] < timedelta(hours=6):
         #     continue
-        # if ("template_place" in data and int(data["template_place"]) > 18) or ("pixels_to_win" in data and data["pixels_to_win"] != "In the zone" and int(data["pixels_to_win"]) > 35):
-        #     continue
-    #     if data["balance"] > 200000:
-    #         print(data["balance"])
-    #         summ += data["balance"]
-    # print(summ)
-        if now - data["last_paint"] >= timedelta(hours=random.uniform(1.4, 1.8)):
+    #     if ("template_place" in data and int(data["template_place"]) > 11): #or ("pixels_to_win" in data and data["pixels_to_win"] != "In the zone" and int(data["pixels_to_win"]) > 35):
+    #         continue
+    # #     if data["balance"] > 200000:
+    # #         print(data["balance"])
+    # #         summ += data["balance"]
+    # # print(summ)
+        if now - data["last_paint"] >= timedelta(hours=random.uniform(1.5, 1.8)):
             work_to_run.append(profile_id)
     random.shuffle(work_to_run)
-    run_work_in_threads(work_to_run, profiles)
+    run_work_in_threads(work_to_run, profiles, tanos)
+
+
+# # Ваши данные для доступа к API Telegram
+# api_id = '25358379'  # замените на ваш API ID
+# api_hash = 'e0ad0b8803af099b2ee37f0099e3844d'  # замените на ваш API Hash
+# phone_number = 'YOUR_PHONE_NUMBER'  # ваш номер телефона
+
+# # Создание клиента
+# client = TelegramClient('session_name', api_id, api_hash)
+
+# # Функция для отслеживания сообщений в канале
+# async def message_handler(event, tanos):
+#     try:
+#         message = event.message.text
+#         if message == "NOT TANOS":
+#             tanos["time"] = datetime.now()
+#             logging.info("NEW MESSAGE ABOUT TANOS")
+#             save_tanos(tanos)
+#             tanos["time"] = datetime.fromisoformat(
+#                 tanos["time"]
+#             )
+#     except Exception:
+#         pass
+
+# # Функция для запуска клиента Telegram в отдельном потоке
+# def telegram_listener(tanos):
+#     loop = asyncio.new_event_loop()  # Создание новой петли событий
+#     asyncio.set_event_loop(loop)  # Устанавливаем эту петлю как активную в потоке
+
+#     with client:
+#         client.add_event_handler(partial(message_handler, tanos=tanos), events.NewMessage)
+#         loop.run_until_complete(client.run_until_disconnected())  # Асинхронно запускаем клиента
 
 
 def main():
@@ -125,6 +173,8 @@ def main():
 
         else:
             profiles = load_profiles()
+            tanos = load_tanos()
+            # threading.Thread(target=telegram_listener, args=(tanos,), daemon=True).start()
 
             if not is_started:
                 save_profiles(profiles, "start_profiles.json")
@@ -140,11 +190,12 @@ def main():
 
             else:
                 check_and_run_work(
-                    profiles
+                    profiles,
+                    tanos
                 )  # Проверяем и запускаем задачи для аккаунтов, если время истекло
                 save_profiles(profiles)
                 logging.info("Pause 4-6 minutes")
-                time.sleep(random.randint(180, 300))
+                time.sleep(random.randint(240, 360))
 
 
 if __name__ == "__main__":

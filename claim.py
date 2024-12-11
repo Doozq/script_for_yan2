@@ -28,7 +28,7 @@ def check_tanos(driver):
         driver.implicitly_wait(0)
         alarm = driver.find_element(By.XPATH, "//*[contains(text(), 'I AM')]")
         driver.implicitly_wait(10)
-        time.sleep(random.uniform(7.0, 10.0))
+        time.sleep(random.uniform(9.0, 11.0))
 
         logging.info("TANOS was dodged in work")
         return True
@@ -66,9 +66,7 @@ def claim(driver, profile_id, profiles):
         balance_btn.click()
         time.sleep(3)
         
-        if check_tanos(driver):
-            claim(driver, profile_id, profiles)
-            return
+        check_tanos(driver)
         end_balance = get_balance(driver)
         profit = end_balance - start_balance
         if end_balance:
@@ -80,10 +78,7 @@ def claim(driver, profile_id, profiles):
 
     except NoSuchElementException as e:
         logging.info(f"Profile {profile_name}. Claim is not available yet: {e}")
-        back_btn = driver.find_element(
-            By.XPATH, "//span[contains(@class, 'telegram_icons _icon')]"
-        )
-        back_btn.click()
+        balance_btn.click()
         time.sleep(1)
 
     except Exception as e:

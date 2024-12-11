@@ -14,7 +14,7 @@ from selenium.common.exceptions import NoSuchElementException
 
 import logger_setup
 
-from coordinate import convert_coords_from_pixel_to_canvas
+from coordinate import convert_coords_from_pixel_to_canvas, moove_template
 from colors import color_from_template, color_from_screen
 from claim import get_balance
 from templates import templates, tournament_templates
@@ -23,16 +23,18 @@ from config import real_colors, pupmkin_colors, t_size
 from test import get_top_colors
 
 def get_energy(driver):
-    energy_element = driver.find_element(
-        By.XPATH, "//div[contains(@class, 'placeholder')]"
-    )
-    energy = int(
-        energy_element.get_attribute("innerHTML")
-        .split("<span")[2][1:]
-        .replace("</span>", "")
-    )
-    return energy
-
+    try:
+        energy_element = driver.find_element(
+            By.XPATH, "//div[contains(@class, 'placeholder')]"
+        )
+        energy = int(
+            energy_element.get_attribute("innerHTML")
+            .split("<span")[2][1:]
+            .replace("</span>", "")
+        )
+        return energy
+    except Exception:
+        raise
 
 def get_template(driver):
     try:
@@ -76,35 +78,52 @@ def change_color(color, canvas, driver):
                 By.XPATH, f"//div[contains(@style, '{color}')]"
             )
             need_color.click()
-            time.sleep(1)
+            time.sleep(0.5)
             active_color_element.click()
-            time.sleep(2)
-
-        # Проверка
-        active_color_element = driver.find_element(
-            By.XPATH, "//div[contains(@class, 'active_color')]"
-        )
-        active_color = tuple(
-            map(
-                int,
-                active_color_element.get_attribute("style")
-                .replace("background-color: rgb(", "")[:-2]
-                .split(", "),
-            )
-        )
-
-        if active_color == color:
+            time.sleep(1)
             return True
-        else:
-            return False
+
+    except ElementClickInterceptedException:
+        return False
+
     except Exception as e:
         logging.error(f"Error in change_color: {e}")
         raise
 
-def check_tanos(driver, canvas, direction):
+def check_tanos(driver, canvas, direction, tanos):
+    try:
+        if (datetime.now() - tanos["time"]).seconds < 7:
+            time.sleep(random.uniform(9.0, 11.0))
+
+            template_btn = driver.find_element(
+                By.XPATH, "//div[contains(@class, 'buttons_container')]/button/img"
+            )
+            time.sleep(0.5)
+            template_btn.click()
+            time.sleep(2)
+            template_btn.click()
+            time.sleep(1)
+
+            offset = direction
+            actions = ActionChains(driver)
+
+            # Зажимаем ЛКМ, перемещаем элемент и отпускаем
+            actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
+            time.sleep(2)
+
+            logging.info("TANOS was dodged")
+            return True
+        else:
+            return False
+        
+    except Exception as e:
+        logging.error(f"Error in check_tanos: {e}")
+        raise
+
+def check_tanos_long(driver, canvas, direction):
     try:
         alarm = driver.find_element(By.XPATH, "//*[contains(text(), 'I AM')]")
-        time.sleep(random.uniform(7.0, 10.0))
+        time.sleep(random.uniform(9.0, 11.0))
 
         template_btn = driver.find_element(
             By.XPATH, "//div[contains(@class, 'buttons_container')]/button/img"
@@ -116,17 +135,14 @@ def check_tanos(driver, canvas, direction):
         time.sleep(1)
 
         offset = direction
-        actions = ActionChains(driver)
-
-        # Зажимаем ЛКМ, перемещаем элемент и отпускаем
-        actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
-        time.sleep(2)
+        moove_template(driver, canvas, offset)
 
         logging.info("TANOS was dodged")
+        return True
     
     except NoSuchElementException:
-        return
-
+        return False
+        
     except Exception as e:
         logging.error(f"Error in check_tanos: {e}")
         raise
@@ -147,29 +163,68 @@ def enable_speed(driver):
         except Exception:
             raise
 
-    
-
-
 def enable_fast_mode(driver):
     try:
         fast_btn = driver.find_elements(
             By.XPATH, "//button[contains(@class, 'shop_button')]"
         )[4]
+        fast_btn_class = fast_btn.get_attribute("class")
+        if "fast_mode_button_enabled" in fast_btn_class:
+            return True
         fast_btn.click()
-        time.sleep(2)
+        time.sleep(0.5)
         check_fast_btn = driver.find_element(
             By.XPATH, "//button[contains(@class, 'fast_mode_button_enabled')]"
         )
         return True
-    except NoSuchElementException:
+    except ElementClickInterceptedException:
         return False
     except Exception:
+        logging.error("Error in enable_fast_mode")
         raise
 
+def get_start(canvas, driver, profiles, profile_id):
+    try:
+        canvas.click()
+        time.sleep(0.2)
+        element = driver.find_element(
+            By.XPATH, "//div[contains(@class, 'pixel_info_text')]"
+        )
+        text = element.get_attribute("innerHTML")
+        coords = text[: text.find("&")]
+        x_pixel, y_pixel = coords.split(", ")
+        x, y = int(x_pixel), int(y_pixel)
+        start_x = x - x % t_size
+        start_y = y - y % t_size
+        start = [start_x, start_y]
+        profiles[profile_id]["start"] = start
+        return start
+    except ElementClickInterceptedException:
+        if check_tanos_long(driver, canvas, profiles[profile_id]["direction"]):
+            return get_start(canvas, driver, profiles, profile_id)
+        else:
+            raise
+    
+    except Exception:
+        raise
 
 def get_other_colors(profiles, template_path, direction):
     picked_colors = [profile["color"] for profile in profiles.values() if "temp" in profile and profile["temp"] == template_path and "direction" in profile and profile["direction"] == direction and "color" in profile]
     return picked_colors
+
+def check_colibration(driver, real_canvas_x, real_canvas_y, x_canvas_zero, y_canvas_zero, x_pixel_zero, y_pixel_zero, ratio_x, ratio_y):
+    element = driver.find_element(
+        By.XPATH, "//div[contains(@class, 'pixel_info_text')]"
+    )
+    text = element.get_attribute("innerHTML")
+    coords = text[: text.find("&")]
+    x_pixel, y_pixel = map(int, coords.split(", "))
+    expected_x, expected_y = convert_coords_from_pixel_to_canvas(
+        x_pixel, y_pixel, x_canvas_zero, y_canvas_zero, x_pixel_zero, y_pixel_zero, ratio_x, ratio_y
+    )
+    print(expected_x, expected_y)
+    print(real_canvas_x, real_canvas_y)
+    return real_canvas_x == expected_x and real_canvas_y == expected_y
 
 def start_paint(
     x_canvas_zero,
@@ -184,13 +239,17 @@ def start_paint(
     canvas,
     profile_id,
     profiles,
+    tanos,
 ):
     profile_name = profiles[profile_id]["name"]
     try:
         start_balance = get_balance(driver)
         # template = get_template(driver)
         template_path = profiles[profile_id]["temp"]
-        start = profiles[profile_id]["start"]
+        if "start" in profiles[profile_id]:
+            start = profiles[profile_id]["start"]
+        else:
+            start = get_start(canvas, driver, profiles, profile_id)
         energy = get_energy(driver)
         colored = 0
         pixel_coords = [[(x, y) for x in range(max(x_pixel_zero, start[0]), min(x_pixel_end, start[0] + t_size - 1) + 1)] for y in range(max(y_pixel_zero, start[1]), min(y_pixel_end, start[1] + t_size - 1) + 1)]
@@ -209,40 +268,139 @@ def start_paint(
                 ) for coord in row
             ] for row in pixel_coords
         ]
-        
+
         range_x = x_pixel_end - x_pixel_zero + 1
         range_y = y_pixel_end - y_pixel_zero + 1
         
         top_colors = get_top_colors(template_path, template_colors, opacity)
-        direction = profiles[profile_id]["direction"]
-        other_colors = get_other_colors(profiles, template_path, direction)
-        if len(other_colors) == 1:
-            top_colors = [color for color in top_colors if color != other_colors[0]]
-        elif len(other_colors) > 1:
-            return
         top_color = random.choice(top_colors)
-        profiles[profile_id]["color"] = top_color
+        direction = profiles[profile_id]["direction"][:]
         if not change_color(top_color, canvas, driver):
-            return
-        time.sleep(1)
-
+            if check_tanos_long(driver, canvas, direction):
+                start_paint(
+                    x_canvas_zero,
+                    y_canvas_zero,
+                    x_pixel_zero,
+                    y_pixel_zero,
+                    x_pixel_end,
+                    y_pixel_end,
+                    ratio_x,
+                    ratio_y,
+                    driver,
+                    canvas,
+                    profile_id,
+                    profiles,
+                    tanos,
+                )
+                return
+            else:
+                logging.error(f"Profile {profiles[profile_id]["name"]}. Error while changing color without tanos")
+                return
+        time.sleep(0.5)
         if not enable_fast_mode(driver):
-            return
-        if int(profiles[profile_id]["name"]) in [14]:
-            enable_speed(driver)
+            if check_tanos_long(driver, canvas, direction):
+                start_paint(
+                    x_canvas_zero,
+                    y_canvas_zero,
+                    x_pixel_zero,
+                    y_pixel_zero,
+                    x_pixel_end,
+                    y_pixel_end,
+                    ratio_x,
+                    ratio_y,
+                    driver,
+                    canvas,
+                    profile_id,
+                    profiles,
+                    tanos,
+                )
+                return
+            else:
+                logging.error(f"Profile {profiles[profile_id]["name"]}. Error while enabling fast mode without tanos")
+                return
+        
+        # if int(profiles[profile_id]["name"]) in [14]:
+        #     enable_speed(driver)
         driver.implicitly_wait(0)
-        check_tanos(driver, canvas, direction)
+
+        # if (datetime.now() - tanos["time"]).seconds < 150:
+        #     allowed_colors = real_colors + pupmkin_colors
+        # else:
+        #     allowed_colors = pupmkin_colors
+        allowed_colors = real_colors + pupmkin_colors
         while energy != 0:
             # start_time = time.time()
             screen_colors = color_from_screen(canvas_coords, canvas)
             # time_screen = time.time() - start_time
             # start_time = time.time()
             if opacity == 0:
-                indexes = [(i, j) for i in range(range_y) for j in range(range_x) if template_colors[i][j] != screen_colors[i][j] and template_colors[i][j] == top_color and screen_colors[i][j] in (real_colors + pupmkin_colors)]
+                indexes = [(i, j) for i in range(range_y) for j in range(range_x) if template_colors[i][j] != screen_colors[i][j] and template_colors[i][j] == top_color and screen_colors[i][j] in allowed_colors]
+                indexes1 = [(i, j) for i in range(range_y) for j in range(range_x) if template_colors[i][j] != screen_colors[i][j] and template_colors[i][j] != top_color and screen_colors[i][j] in allowed_colors]
             else:
-                indexes = [(i, j) for i in range(range_y) for j in range(range_x) if template_colors[i][j] != screen_colors[i][j] and template_colors[i][j] == top_color and screen_colors[i][j] in (real_colors + pupmkin_colors) and opacity[i][j] == 255]
-            if len(indexes) == 0:
+                indexes = [(i, j) for i in range(range_y) for j in range(range_x) if template_colors[i][j] != screen_colors[i][j] and template_colors[i][j] == top_color and screen_colors[i][j] in allowed_colors and opacity[i][j] == 255]
+                indexes1 = [(i, j) for i in range(range_y) for j in range(range_x) if template_colors[i][j] != screen_colors[i][j] and template_colors[i][j] != top_color and screen_colors[i][j] in allowed_colors and opacity[i][j] == 255]
+            if len(indexes) == 0 and len(indexes1) == 0:
+                if check_tanos_long(driver, canvas, direction):
+                    start_paint(
+                        x_canvas_zero,
+                        y_canvas_zero,
+                        x_pixel_zero,
+                        y_pixel_zero,
+                        x_pixel_end,
+                        y_pixel_end,
+                        ratio_x,
+                        ratio_y,
+                        driver,
+                        canvas,
+                        profile_id,
+                        profiles,
+                        tanos,
+                    )
+                    return
                 continue
+            elif len(indexes) == 0 and len(indexes1) != 0:
+                i, j = random.choice(indexes1)
+                new_color = template_colors[i][j]
+                if not change_color(new_color, canvas, driver):
+                    if check_tanos_long(driver, canvas, direction):
+                        start_paint(
+                            x_canvas_zero,
+                            y_canvas_zero,
+                            x_pixel_zero,
+                            y_pixel_zero,
+                            x_pixel_end,
+                            y_pixel_end,
+                            ratio_x,
+                            ratio_y,
+                            driver,
+                            canvas,
+                            profile_id,
+                            profiles,
+                            tanos,
+                        )
+                        return
+                    else:
+                        continue
+                top_color = new_color
+                if check_tanos_long(driver, canvas, direction):
+                    start_paint(
+                        x_canvas_zero,
+                        y_canvas_zero,
+                        x_pixel_zero,
+                        y_pixel_zero,
+                        x_pixel_end,
+                        y_pixel_end,
+                        ratio_x,
+                        ratio_y,
+                        driver,
+                        canvas,
+                        profile_id,
+                        profiles,
+                        tanos,
+                    )
+                    return
+                continue
+
             i, j = random.choice(indexes)
             canvas_x, canvas_y = canvas_coords[i][j][0], canvas_coords[i][j][1]
 
@@ -257,29 +415,117 @@ def start_paint(
                     repaint_color = random.choice(real_colors_except_template)
 
                 if not change_color(repaint_color, canvas, driver):
-                    return
-                time.sleep(1)
-                paint(canvas_x, canvas_y, driver, canvas, direction)
+                    if check_tanos_long(driver, canvas, direction):
+                        start_paint(
+                            x_canvas_zero,
+                            y_canvas_zero,
+                            x_pixel_zero,
+                            y_pixel_zero,
+                            x_pixel_end,
+                            y_pixel_end,
+                            ratio_x,
+                            ratio_y,
+                            driver,
+                            canvas,
+                            profile_id,
+                            profiles,
+                            tanos,
+                        )
+                        return
+                    else:
+                        continue
+                time.sleep(0.5)
+                if not paint(canvas_x, canvas_y, driver, canvas, direction):
+                    if check_tanos_long(driver, canvas, direction):
+                        start_paint(
+                            x_canvas_zero,
+                            y_canvas_zero,
+                            x_pixel_zero,
+                            y_pixel_zero,
+                            x_pixel_end,
+                            y_pixel_end,
+                            ratio_x,
+                            ratio_y,
+                            driver,
+                            canvas,
+                            profile_id,
+                            profiles,
+                            tanos,
+                        )
+                        return
+                    else:
+                        top_color = repaint_color
+                        continue
                 if not change_color(top_color, canvas, driver):
-                    return
+                    if check_tanos_long(driver, canvas, direction):
+                        start_paint(
+                            x_canvas_zero,
+                            y_canvas_zero,
+                            x_pixel_zero,
+                            y_pixel_zero,
+                            x_pixel_end,
+                            y_pixel_end,
+                            ratio_x,
+                            ratio_y,
+                            driver,
+                            canvas,
+                            profile_id,
+                            profiles,
+                            tanos,
+                        )
+                        return
+                    else:
+                        top_color = repaint_color
+                        continue
                 logging.info(f"Profile {profile_name}. Miss dropped")
             
             else:
                 # start_time = time.time()
-                paint(canvas_x, canvas_y, driver, canvas, direction)
+                if not paint(canvas_x, canvas_y, driver, canvas, direction):
+                    if check_tanos_long(driver, canvas, direction):
+                        start_paint(
+                            x_canvas_zero,
+                            y_canvas_zero,
+                            x_pixel_zero,
+                            y_pixel_zero,
+                            x_pixel_end,
+                            y_pixel_end,
+                            ratio_x,
+                            ratio_y,
+                            driver,
+                            canvas,
+                            profile_id,
+                            profiles,
+                            tanos,
+                        )
+                        return
+                    else:
+                        continue
                 # time_paint = time.time() - start_time
 
             # print(time_screen, time_find, time_paint)
             colored += 1
-            time.sleep(random.uniform(0.5, 2))
-            start_energy = energy
+            time.sleep(random.uniform(0.5, 1.5))
             energy = get_energy(driver)
-            if int(profiles[profile_id]["name"]) in [14] and energy == 0:
-                energy = 25
-            if start_energy == energy:
-                start_time = time.time()
-                check_tanos(driver, canvas, direction)
-                print(time.time() - start_time)
+            # if int(profiles[profile_id]["name"]) in [14] and energy == 0:
+            #     energy = 25
+            if check_tanos_long(driver, canvas, direction):
+                start_paint(
+                    x_canvas_zero,
+                    y_canvas_zero,
+                    x_pixel_zero,
+                    y_pixel_zero,
+                    x_pixel_end,
+                    y_pixel_end,
+                    ratio_x,
+                    ratio_y,
+                    driver,
+                    canvas,
+                    profile_id,
+                    profiles,
+                    tanos,
+                )
+                return
         time.sleep(2)
         end_balance = get_balance(driver)
         profit = end_balance - start_balance
@@ -302,38 +548,10 @@ def start_paint(
 def paint(x, y, driver, canvas, direction):
     try:
         ActionChains(driver).move_to_element_with_offset(canvas, x, y).click().perform()
+        return True
 
     except ElementClickInterceptedException:
-        try:
-            driver.implicitly_wait(1)
-            whoosh_btn = driver.find_element(By.XPATH, "//button[text()='Whoosh!']")
-            driver.implicitly_wait(15)
-            time.sleep(1.5)
-            whoosh_btn.click()
-            time.sleep(random.uniform(7.0, 10.0))
-
-            template_btn = driver.find_element(
-                By.XPATH, "//div[contains(@class, 'container')]/button/img"
-            )
-            time.sleep(0.5)
-            template_btn.click()
-            time.sleep(2)
-            template_btn.click()
-            time.sleep(1)
-
-            offset = direction
-            actions = ActionChains(driver)
-
-            # Зажимаем ЛКМ, перемещаем элемент и отпускаем
-            actions.click_and_hold(canvas).move_by_offset(offset[0], offset[1]).release().perform()
-            time.sleep(2)
-
-            logging.info("TANOS was dodged")
-
-        except Exception as e:
-            driver.implicitly_wait(15)
-            logging.error(f"Error trying dodge tanos: {e}")
-            raise
+        return False
 
     except Exception as e:
         logging.error(f"Error in paint: {e}")
